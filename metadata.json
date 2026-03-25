@@ -1,0 +1,5 @@
+{
+  "name": "EKS Istio Showcase",
+  "description": "Terraform code and instructions to provision an EKS cluster with Istio and Envoy.",
+  "requestFramePermissions": []
+}
