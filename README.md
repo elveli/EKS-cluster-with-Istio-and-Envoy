@@ -64,7 +64,26 @@ graph TD
     class EKSAPI admin;
 ```
 
-## 1. Provision the EKS Cluster
+## 1. Provision the Cluster
+
+You can choose to run this showcase entirely locally using Docker Desktop, or provision a cloud environment using AWS EKS.
+
+### Option A: Clean Local Setup (Docker Desktop - Mac/Windows)
+
+If you want to run this locally without AWS costs, you can use the Kubernetes cluster built into Docker Desktop.
+
+1. Open **Docker Desktop**.
+2. Go to **Settings (Gear icon)** -> **Kubernetes**.
+3. Check **Enable Kubernetes** and click **Apply & Restart**.
+4. Wait for the Kubernetes cluster to start (the K8s icon in the bottom left will turn green).
+5. Ensure your terminal `kubectl` is pointing to the Docker Desktop local cluster:
+   ```bash
+   kubectl config use-context docker-desktop
+   ```
+
+*You can now skip directly to **Step 2 (Install Istio)**.*
+
+### Option B: Cloud Setup (Amazon EKS via Terraform)
 
 Navigate to the `terraform` directory and apply the configuration:
 
@@ -126,12 +145,19 @@ Deploy the Istio Ingress Gateway to allow external traffic into the mesh:
 kubectl apply -f samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
-Get the external IP/URL of the Ingress Gateway:
-
+**If you are running on AWS EKS:**
 ```bash
 export INGRESS_HOST=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 export INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].port}')
 export GATEWAY_URL=$INGRESS_HOST:$INGRESS_PORT
+
+echo "Access the app at: http://$GATEWAY_URL/productpage"
+```
+
+**If you are running LOCALLY on Docker Desktop:**
+Docker Desktop maps LoadBalancer services directly to your localhost.
+```bash
+export GATEWAY_URL=localhost:80
 
 echo "Access the app at: http://$GATEWAY_URL/productpage"
 ```
@@ -219,14 +245,29 @@ istioctl dashboard kiali
 ## 6. Cleanup
 
 ```bash
-# Remove the sample app
+# First, remove the sample app routing rules and gateways
+samples/bookinfo/networking/cleanup.sh
+
+# Remove the sample app deployment
 samples/bookinfo/platform/kube/cleanup.sh
 
-# Uninstall Istio
+# Uninstall Istio and remove its namespace
 istioctl uninstall -y --purge
 kubectl delete namespace istio-system
+```
 
-# Destroy EKS Cluster
+### Option A: Local Docker Desktop Cleanup
+
+If you used Docker Desktop, your cloud cleanup is effectively done. You can either leave the local Kubernetes cluster running empty, or turn it off:
+1. Open **Docker Desktop**.
+2. Go to **Settings** -> **Kubernetes**.
+3. Uncheck **Enable Kubernetes** and click **Apply & Restart** (or click **Reset Kubernetes cluster** to wipe it completely).
+
+### Option B: AWS EKS Cloud Cleanup
+
+If you provisioned the EKS cluster via Terraform, make sure you destroy the cloud resources to avoid unexpected AWS charges:
+
+```bash
 cd ../terraform
 terraform destroy -auto-approve
 ```
