@@ -34,22 +34,22 @@ graph TD
             end
             
             %% Control Plane connections (xDS)
-            Istiod -.-|Push Envoy Config (xDS)| IngressGW
-            Istiod -.-|Push Envoy Config (xDS)| ProductPage
-            Istiod -.-|Push Envoy Config (xDS)| Details
-            Istiod -.-|Push Envoy Config (xDS)| Reviews1
-            Istiod -.-|Push Envoy Config (xDS)| Reviews2
-            Istiod -.-|Push Envoy Config (xDS)| Reviews3
-            Istiod -.-|Push Envoy Config (xDS)| Ratings
+            Istiod -. "Push Envoy Config (xDS)" .-> IngressGW
+            Istiod -. "Push Envoy Config (xDS)" .-> ProductPage
+            Istiod -. "Push Envoy Config (xDS)" .-> Details
+            Istiod -. "Push Envoy Config (xDS)" .-> Reviews1
+            Istiod -. "Push Envoy Config (xDS)" .-> Reviews2
+            Istiod -. "Push Envoy Config (xDS)" .-> Reviews3
+            Istiod -. "Push Envoy Config (xDS)" .-> Ratings
             
             %% Data Plane traffic flow
-            IngressGW ==>|Routes traffic| ProductPage
-            ProductPage ==>|Fetches details| Details
-            ProductPage ==>|Fetches reviews| Reviews1
-            ProductPage ==>|Fetches reviews| Reviews2
-            ProductPage ==>|Fetches reviews| Reviews3
-            Reviews2 ==>|Fetches ratings| Ratings
-            Reviews3 ==>|Fetches ratings| Ratings
+            IngressGW == "Routes traffic" ==> ProductPage
+            ProductPage == "Fetches details" ==> Details
+            ProductPage == "Fetches reviews" ==> Reviews1
+            ProductPage == "Fetches reviews" ==> Reviews2
+            ProductPage == "Fetches reviews" ==> Reviews3
+            Reviews2 == "Fetches ratings" ==> Ratings
+            Reviews3 == "Fetches ratings" ==> Ratings
         end
     end
 
