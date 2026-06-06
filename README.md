@@ -2,6 +2,68 @@
 
 This project provides Terraform code to provision an Amazon EKS cluster and instructions to deploy Istio (which uses Envoy under the hood) along with a sample application to showcase traffic routing, observability, and security.
 
+## Architecture & Traffic Flow
+
+The following diagram illustrates how the components interact in the cloud environment, from the user's initial request down to the individual components in the Bookinfo microservices.
+
+```mermaid
+graph TD
+    User((User)) -->|HTTP Request| IngressGW
+
+    Admin((Cluster Admin)) -->|kubectl / istioctl| EKSAPI[EKS API Server]
+    EKSAPI --> Istiod
+
+    subgraph "AWS Cloud (VPC)"
+        subgraph "Amazon EKS Cluster"
+            subgraph "namespace: istio-system"
+                Istiod["Istiod (Control Plane)<br/>Manages config & certificates"]
+                IngressGW["Istio Ingress Gateway (Envoy)<br/>Entrypoint for external traffic"]
+            end
+
+            subgraph "namespace: default (Bookinfo App)"
+                ProductPage["productpage pod<br/>(App + Envoy Sidecar)"]
+                Details["details pod<br/>(App + Envoy Sidecar)"]
+                
+                subgraph "reviews pods"
+                    Reviews1["reviews-v1<br/>(App + Envoy Sidecar)"]
+                    Reviews2["reviews-v2<br/>(App + Envoy Sidecar)"]
+                    Reviews3["reviews-v3<br/>(App + Envoy Sidecar)"]
+                end
+                
+                Ratings["ratings pod<br/>(App + Envoy Sidecar)"]
+            end
+            
+            %% Control Plane connections (xDS)
+            Istiod -.-|Push Envoy Config (xDS)| IngressGW
+            Istiod -.-|Push Envoy Config (xDS)| ProductPage
+            Istiod -.-|Push Envoy Config (xDS)| Details
+            Istiod -.-|Push Envoy Config (xDS)| Reviews1
+            Istiod -.-|Push Envoy Config (xDS)| Reviews2
+            Istiod -.-|Push Envoy Config (xDS)| Reviews3
+            Istiod -.-|Push Envoy Config (xDS)| Ratings
+            
+            %% Data Plane traffic flow
+            IngressGW ==>|Routes traffic| ProductPage
+            ProductPage ==>|Fetches details| Details
+            ProductPage ==>|Fetches reviews| Reviews1
+            ProductPage ==>|Fetches reviews| Reviews2
+            ProductPage ==>|Fetches reviews| Reviews3
+            Reviews2 ==>|Fetches ratings| Ratings
+            Reviews3 ==>|Fetches ratings| Ratings
+        end
+    end
+
+    classDef controlPlane fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef dataPlane fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef gw fill:#fff3e0,stroke:#e65100,stroke-width:2px;
+    classDef admin fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
+
+    class Istiod controlPlane;
+    class ProductPage,Details,Reviews1,Reviews2,Reviews3,Ratings dataPlane;
+    class IngressGW gw;
+    class EKSAPI admin;
+```
+
 ## 1. Provision the EKS Cluster
 
 Navigate to the `terraform` directory and apply the configuration:

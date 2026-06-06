@@ -1,10 +1,38 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
+import mermaid from 'mermaid';
 import { Terminal, FileCode2, BookOpen, Server } from 'lucide-react';
 import readmeContent from '../README.md?raw';
 import mainTfContent from '../terraform/main.tf?raw';
 import variablesTfContent from '../terraform/variables.tf?raw';
 import outputsTfContent from '../terraform/outputs.tf?raw';
+
+function MermaidChart({ chart }: { chart: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    if (containerRef.current) {
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: 'default',
+        securityLevel: 'loose',
+      });
+      // Generate a unique ID for the mermaid container
+      const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
+      containerRef.current.id = id;
+      
+      mermaid.render(id + '-svg', chart).then((result) => {
+        if (containerRef.current) {
+          containerRef.current.innerHTML = result.svg;
+        }
+      }).catch(e => {
+        console.error("Mermaid rendering failed", e);
+      });
+    }
+  }, [chart]);
+
+  return <div ref={containerRef} className="my-8 flex justify-center bg-white p-4 rounded-xl shadow-sm border border-slate-200" />;
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('readme');
@@ -60,7 +88,20 @@ export default function App() {
             >
               {tab.isMarkdown ? (
                 <div className="prose prose-slate max-w-none prose-headings:font-semibold prose-a:text-blue-600 hover:prose-a:text-blue-500 prose-pre:bg-slate-900 prose-pre:text-slate-50">
-                  <ReactMarkdown>{tab.content}</ReactMarkdown>
+                  <ReactMarkdown
+                    components={{
+                      code(props) {
+                        const {children, className, node, ...rest} = props;
+                        const match = /language-(\w+)/.exec(className || '');
+                        if (match && match[1] === 'mermaid') {
+                          return <MermaidChart chart={String(children).replace(/\n$/, '')} />;
+                        }
+                        return <code {...rest} className={className}>{children}</code>;
+                      }
+                    }}
+                  >
+                    {tab.content}
+                  </ReactMarkdown>
                 </div>
               ) : (
                 <pre className="bg-slate-900 text-slate-50 p-6 rounded-lg overflow-x-auto text-sm font-mono leading-relaxed">
