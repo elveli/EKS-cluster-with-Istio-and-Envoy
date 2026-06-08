@@ -188,7 +188,34 @@ istioctl proxy-config clusters $REVIEWS_POD
 istioctl proxy-config endpoints $REVIEWS_POD
 ```
 
-### C. Check Envoy Sync Status
+### C. Advanced Envoy Configurations (Bootstrap & Secrets)
+
+Envoy receives its initial configuration from a bootstrap file and its TLS certificates via the Secret Discovery Service (SDS).
+
+```bash
+# View the initial bootstrap configuration loaded by Envoy
+istioctl proxy-config bootstrap $REVIEWS_POD
+
+# View the TLS certificates and secrets Envoy currently holds (crucial for mTLS debugging)
+istioctl proxy-config secret $REVIEWS_POD
+```
+
+### D. Dynamically Change Envoy Log Levels
+
+You can change Envoy's internal logging levels on the fly without restarting the pod—a very powerful feature for live debugging.
+
+```bash
+# Check current logging levels
+istioctl proxy-config log $REVIEWS_POD
+
+# Change the logging level for 'connection' and 'http' components to 'debug'
+istioctl proxy-config log $REVIEWS_POD --level connection:debug,http:debug
+
+# Reset logging levels back to the default ('warning')
+istioctl proxy-config log $REVIEWS_POD --level warning
+```
+
+### E. Check Envoy Sync Status
 
 Verify the synchronization status between the Istio Control Plane (istiod) and the Envoy proxies:
 
@@ -196,31 +223,44 @@ Verify the synchronization status between the Istio Control Plane (istiod) and t
 istioctl proxy-status
 ```
 
-### D. Direct Envoy Admin API & Dashboard
+### F. Native Envoy Commands (Admin API)
 
-Each Envoy proxy exposes a native Admin API on port `15000` inside the pod.
+You are absolutely right that `istioctl` commands are just wrappers! If you want to bypass Istio and issue **native Envoy commands** directly, you interact with Envoy's Admin API (running on port `15000` inside the `istio-proxy` container).
 
-**1. Open the raw Envoy Admin UI in your browser:**
+You can run these native Envoy commands by executing `curl` directly inside the proxy container:
+
+```bash
+# View general Envoy server info and version
+kubectl exec -it $REVIEWS_POD -c istio-proxy -- curl -s http://localhost:15000/server_info
+
+# List all upstream clusters known natively to Envoy (format is: name::host::status)
+kubectl exec -it $REVIEWS_POD -c istio-proxy -- curl -s http://localhost:15000/clusters
+
+# List all native Envoy listeners
+kubectl exec -it $REVIEWS_POD -c istio-proxy -- curl -s http://localhost:15000/listeners
+
+# View Envoy internal metrics/stats (append ?filter=... to filter output)
+kubectl exec -it $REVIEWS_POD -c istio-proxy -- curl -s http://localhost:15000/stats?filter=xds
+
+# Dynamically change Envoy logging level via its native API (POST request)
+kubectl exec -it $REVIEWS_POD -c istio-proxy -- curl -s -X POST http://localhost:15000/logging?level=debug
+
+# Reset all Envoy statistical counters (POST request)
+kubectl exec -it $REVIEWS_POD -c istio-proxy -- curl -s -X POST http://localhost:15000/reset_counters
+
+# Dump the full native Envoy configuration JSON
+kubectl exec -it $REVIEWS_POD -c istio-proxy -- curl -s http://localhost:15000/config_dump
+```
+
+**Alternative: Accessing the Envoy Admin UI in a Browser**
+
+If you prefer a UI over the terminal, Istio provides a shortcut to port-forward the native Envoy Admin UI to your browser:
+
 ```bash
 istioctl dashboard envoy $REVIEWS_POD
 ```
 
-**2. Query the Envoy Admin API directly via port-forwarding:**
-```bash
-# Open port-forwarding in the background (or another terminal)
-kubectl port-forward $REVIEWS_POD 15000:15000 &
-
-# List all available Envoy admin endpoints
-curl http://localhost:15000/help
-
-# View Envoy internal metrics and stats
-curl http://localhost:15000/stats
-
-# Get a full JSON dump of the Envoy configuration
-curl http://localhost:15000/config_dump
-```
-
-### E. View Envoy Access Logs
+### G. View Envoy Access Logs
 
 To see the traffic access logs from the Envoy sidecar proxy container:
 
@@ -228,7 +268,7 @@ To see the traffic access logs from the Envoy sidecar proxy container:
 kubectl logs $REVIEWS_POD -c istio-proxy
 ```
 
-### F. Observability (Kiali & Jaeger)
+### H. Observability (Kiali & Jaeger)
 
 Install the observability addons:
 
