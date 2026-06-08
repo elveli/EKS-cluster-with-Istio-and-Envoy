@@ -223,6 +223,16 @@ Verify the synchronization status between the Istio Control Plane (istiod) and t
 istioctl proxy-status
 ```
 
+**Understanding "SUBSCRIBED TYPES" (xDS):**
+When you run the command above, you will see a column listing subscribed types like `4 (CDS,LDS,EDS,RDS)`. These are the native **Envoy Discovery Service (xDS)** APIs that Envoy uses to fetch its configuration dynamically from Istiod:
+
+*   **CDS (Cluster Discovery Service):** Defines the "clusters" (upstream services) that Envoy can route traffic to.
+*   **EDS (Endpoint Discovery Service):** Provides the specific IP addresses (endpoints) of the pods backing the clusters defined in CDS.
+*   **LDS (Listener Discovery Service):** Defines the ports Envoy listens on, and the network filters applied to incoming connections.
+*   **RDS (Route Discovery Service):** Provides the HTTP routing rules (like the weight-based traffic split for Bookinfo) that map virtual hosts and paths to the clusters.
+
+Notice that the `istio-egressgateway` only subscribes to `3 (CDS,LDS,EDS)` because it generally handles TCP/SNI routing or passthrough, meaning it doesn't need rich HTTP routing rules (RDS).
+
 ### F. Native Envoy Commands (Admin API)
 
 You are absolutely right that `istioctl` commands are just wrappers! If you want to bypass Istio and issue **native Envoy commands** directly, you interact with Envoy's Admin API (running on port `15000` inside the `istio-proxy` container).
