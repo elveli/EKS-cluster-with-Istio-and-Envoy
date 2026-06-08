@@ -298,10 +298,7 @@ istioctl dashboard kiali
 ## 6. Cleanup
 
 ```bash
-# First, remove the sample app routing rules and gateways
-samples/bookinfo/networking/cleanup.sh
-
-# Remove the sample app deployment
+# Remove the sample app deployment and networking rules
 samples/bookinfo/platform/kube/cleanup.sh
 
 # Uninstall Istio and remove its namespace
