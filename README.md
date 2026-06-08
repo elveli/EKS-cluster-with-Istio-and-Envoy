@@ -275,6 +275,9 @@ istioctl dashboard envoy $REVIEWS_POD
 To see the traffic access logs from the Envoy sidecar proxy container:
 
 ```bash
+# The -c flag (or --container) specifies the specific container within the Pod.
+# Since Istio injects an Envoy proxy alongside the main app, each Pod has at least 2 containers.
+# We must specify '-c istio-proxy' to read the logs of the Envoy container, rather than the app container.
 kubectl logs $REVIEWS_POD -c istio-proxy
 ```
 
