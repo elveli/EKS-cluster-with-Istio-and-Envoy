@@ -235,7 +235,7 @@ Notice that the `istio-egressgateway` only subscribes to `3 (CDS,LDS,EDS)` becau
 
 ### F. Native Envoy Commands (Admin API)
 
-You are absolutely right that `istioctl` commands are just wrappers! If you want to bypass Istio and issue **native Envoy commands** directly, you interact with Envoy's Admin API (running on port `15000` inside the `istio-proxy` container).
+If you want to bypass Istio and issue **native Envoy commands** directly, you interact with Envoy's Admin API (running on port `15000` inside the `istio-proxy` container).
 
 You can run these native Envoy commands by executing `curl` directly inside the proxy container:
 
