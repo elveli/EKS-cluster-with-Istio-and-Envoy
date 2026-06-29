@@ -376,17 +376,18 @@ terraform destroy -auto-approve
 
 [.github/workflows/ci.yml](.github/workflows/ci.yml) always runs `terraform fmt -check` and `terraform validate` (no AWS access needed). It can also run `terraform plan` on every push to `main`, authenticating to AWS via short-lived OIDC credentials instead of long-lived secrets.
 
-This requires a one-time bootstrap of an IAM OIDC provider + role, defined in `terraform/github-oidc.tf`:
+This requires a one-time bootstrap of an IAM role, defined in `terraform/github-oidc.tf`:
 
 ```bash
 cd terraform
 terraform apply \
-  -target=aws_iam_openid_connect_provider.github_actions \
   -target=aws_iam_role.github_actions_plan \
   -target=aws_iam_role_policy_attachment.github_actions_plan_readonly
 
 terraform output -raw github_actions_role_arn
 ```
+
+(The GitHub Actions OIDC provider itself is looked up via a data source rather than created, since it's a per-AWS-account resource -- if any other project in this account already set up GitHub Actions OIDC, a provider for `token.actions.githubusercontent.com` will already exist and trying to create a second one fails with `EntityAlreadyExists`.)
 
 Then, in the GitHub repo settings (**Settings -> Secrets and variables -> Actions -> Variables**), add a repository variable named `AWS_ROLE_ARN` with that value. The next push to `main` will run the `plan` job; until `AWS_ROLE_ARN` is set, that job is skipped (the fmt/validate/typecheck jobs still run normally).
 

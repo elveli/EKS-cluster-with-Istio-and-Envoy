@@ -1,19 +1,17 @@
 # One-time bootstrap so GitHub Actions can run `terraform plan` against this
 # AWS account without long-lived secrets. Apply this yourself with your own
-# AWS credentials (e.g. `terraform apply -target=aws_iam_openid_connect_provider.github_actions \
-# -target=aws_iam_role.github_actions_plan -target=aws_iam_role_policy_attachment.github_actions_plan_readonly`),
-# then set the `github_actions_role_arn` output as the repository variable
-# AWS_ROLE_ARN (Settings -> Secrets and variables -> Actions -> Variables)
-# so the CI workflow can assume it via OIDC.
+# AWS credentials (e.g. `terraform apply -target=aws_iam_role.github_actions_plan \
+# -target=aws_iam_role_policy_attachment.github_actions_plan_readonly`), then set
+# the `github_actions_role_arn` output as the repository variable AWS_ROLE_ARN
+# (Settings -> Secrets and variables -> Actions -> Variables) so the CI
+# workflow can assume it via OIDC.
 
-data "tls_certificate" "github_actions" {
+# The GitHub Actions OIDC provider is a per-AWS-account resource (one per
+# URL), not per-repo -- if any other project in this account has already
+# set up GitHub Actions OIDC, a provider for this URL already exists.
+# Reference it instead of trying to create a duplicate.
+data "aws_iam_openid_connect_provider" "github_actions" {
   url = "https://token.actions.githubusercontent.com"
-}
-
-resource "aws_iam_openid_connect_provider" "github_actions" {
-  url             = "https://token.actions.githubusercontent.com"
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = [data.tls_certificate.github_actions.certificates[0].sha1_fingerprint]
 }
 
 resource "aws_iam_role" "github_actions_plan" {
@@ -25,7 +23,7 @@ resource "aws_iam_role" "github_actions_plan" {
     Version = "2012-10-17"
     Statement = [{
       Effect    = "Allow"
-      Principal = { Federated = aws_iam_openid_connect_provider.github_actions.arn }
+      Principal = { Federated = data.aws_iam_openid_connect_provider.github_actions.arn }
       Action    = "sts:AssumeRoleWithWebIdentity"
       Condition = {
         StringEquals = {
