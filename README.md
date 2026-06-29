@@ -2,6 +2,14 @@
 
 This project provides Terraform code to provision an Amazon EKS cluster and instructions to deploy Istio (which uses Envoy under the hood) along with a sample application to showcase traffic routing, observability, and security.
 
+## What are Istio and Envoy?
+
+**Envoy** is a lightweight proxy. In this setup, one runs as a "sidecar" container inside every application pod, transparently intercepting all network traffic in and out of that pod -- the application itself doesn't need to know it's there. Because every request flows through a proxy, Envoy can do things like retries, timeouts, load balancing, mutual TLS, and detailed metrics/tracing without any application code changes.
+
+**Istio** is the control plane that configures all those Envoy proxies. Instead of editing each proxy by hand, you declare desired behavior (routing rules, traffic splits, fault injection, security policies) as Kubernetes resources, and Istio's control plane (`istiod`) translates and pushes that configuration out to every Envoy sidecar via the xDS API. Istio also deploys a dedicated Envoy instance as the **Ingress Gateway**, which is the entry point for traffic coming from outside the cluster.
+
+Together: Envoy does the data-plane work (actually moving and inspecting traffic), Istio does the control-plane work (deciding what Envoy should do). The diagram below shows both in action.
+
 ## Architecture & Traffic Flow
 
 The following diagram illustrates how the components interact in the cloud environment, from the user's initial request down to the individual components in the Bookinfo microservices.
