@@ -21,6 +21,35 @@ jobs:
       - run: terraform init -backend=false
       - run: terraform validate
 
+  plan:
+    name: Terraform plan
+    runs-on: ubuntu-latest
+    needs: terraform
+    # Only push-to-main gets cloud credentials; PRs (including forks) never do.
+    # Skips cleanly if AWS_ROLE_ARN hasn't been bootstrapped yet (see terraform/github-oidc.tf).
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.AWS_ROLE_ARN != ''
+    permissions:
+      id-token: write
+      contents: read
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+      # No remote backend is configured, so this plan starts from empty
+      # state on every run -- it validates that a plan succeeds, not true
+      # drift against already-applied infrastructure. Add an S3/DynamoDB
+      # (or equivalent) backend for drift-aware plans.
+      - run: terraform init
+      - run: terraform plan -no-color
+
   frontend:
     name: Frontend typecheck
     runs-on: ubuntu-latest

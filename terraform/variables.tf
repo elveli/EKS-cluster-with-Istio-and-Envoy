@@ -21,3 +21,15 @@ variable "cluster_endpoint_public_access_cidrs" {
   type        = list(string)
   default     = ["0.0.0.0/0"]
 }
+
+variable "github_org" {
+  description = "GitHub org/user that owns this repository (scopes the CI OIDC trust policy in github-oidc.tf)"
+  type        = string
+  default     = "elveli"
+}
+
+variable "github_repo" {
+  description = "GitHub repository name (scopes the CI OIDC trust policy in github-oidc.tf)"
+  type        = string
+  default     = "EKS-cluster-with-Istio-and-Envoy"
+}

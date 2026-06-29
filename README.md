@@ -371,3 +371,25 @@ If you provisioned the EKS cluster via Terraform, make sure you destroy the clou
 cd ../terraform
 terraform destroy -auto-approve
 ```
+
+## 7. CI: Terraform Plan (optional, one-time AWS setup)
+
+[.github/workflows/ci.yml](.github/workflows/ci.yml) always runs `terraform fmt -check` and `terraform validate` (no AWS access needed). It can also run `terraform plan` on every push to `main`, authenticating to AWS via short-lived OIDC credentials instead of long-lived secrets.
+
+This requires a one-time bootstrap of an IAM OIDC provider + role, defined in `terraform/github-oidc.tf`:
+
+```bash
+cd terraform
+terraform apply \
+  -target=aws_iam_openid_connect_provider.github_actions \
+  -target=aws_iam_role.github_actions_plan \
+  -target=aws_iam_role_policy_attachment.github_actions_plan_readonly
+
+terraform output -raw github_actions_role_arn
+```
+
+Then, in the GitHub repo settings (**Settings -> Secrets and variables -> Actions -> Variables**), add a repository variable named `AWS_ROLE_ARN` with that value. The next push to `main` will run the `plan` job; until `AWS_ROLE_ARN` is set, that job is skipped (the fmt/validate/typecheck jobs still run normally).
+
+**Caveats:**
+- The trust policy only allows `push` to `main` (not pull requests, including from forks) to assume the role, and the role only has `ReadOnlyAccess` -- it can't apply or destroy anything.
+- No remote state backend is configured, so the CI plan starts from empty state on every run. It catches syntax/logic errors and confirms a plan succeeds, but it is not a true drift check against already-applied infrastructure. An S3 (or equivalent) backend would be needed for that.
