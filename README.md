@@ -99,6 +99,8 @@ Configure your local `kubectl` to connect to the new cluster:
 aws eks --region $(terraform output -raw region) update-kubeconfig --name $(terraform output -raw cluster_name)
 ```
 
+> **Security note:** By default the EKS API server's public endpoint is reachable from anywhere (`cluster_endpoint_public_access_cidrs = ["0.0.0.0/0"]` in `terraform/variables.tf`), which is convenient for this showcase but not appropriate for anything beyond a throwaway demo. Restrict it to your own IP/CIDR via `-var 'cluster_endpoint_public_access_cidrs=["YOUR_IP/32"]'` (or a `.tfvars` file) before applying in a shared or long-lived environment.
+
 ## 2. Install Istio
 
 Download and install the Istio CLI (`istioctl`):

@@ -5,4 +5,13 @@ coverage/
 .DS_Store
 *.log
 .env*
-!.env.example
+
+# Terraform
+terraform/.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars
+
+# Istio CLI download (fetched per README step 2)
+istio-*/
