@@ -6,6 +6,7 @@ This project provides Terraform code to provision an Amazon EKS cluster and inst
 
 - [What are Istio and Envoy?](#what-are-istio-and-envoy)
 - [Architecture & Traffic Flow](#architecture--traffic-flow)
+- [Makefile Shortcuts](#makefile-shortcuts)
 - [1. Provision the Cluster](#1-provision-the-cluster)
   - [Option A: Clean Local Setup (Docker Desktop - Mac/Windows)](#option-a-clean-local-setup-docker-desktop---macwindows)
   - [Option B: Cloud Setup (Amazon EKS via Terraform)](#option-b-cloud-setup-amazon-eks-via-terraform)
@@ -42,6 +43,30 @@ The following diagram illustrates how the components interact in the cloud envir
 [![Architecture & Traffic Flow diagram](docs/architecture.svg)](docs/architecture.svg)
 
 *Click the diagram (or [open it directly](docs/architecture.svg)) to view it full-size -- right-click / Cmd- or Ctrl-click to open it in a new tab. Source: [docs/architecture.mmd](docs/architecture.mmd).*
+
+## Makefile Shortcuts
+
+Every command in the steps below also has a [Makefile](Makefile) target that wraps it -- run `make help` to list them all. Targets read a handful of variables so you can point them at a different cluster, namespace, or Istio version without editing the file:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `ISTIO_VERSION` | `1.29.1` | Istio release downloaded by `istio-download` / installed by `istio-install` |
+| `ISTIO_PROFILE` | `demo` | `istioctl install` profile |
+| `NAMESPACE` | `default` | Namespace Bookinfo is deployed into and labeled for sidecar injection |
+| `KUBE_CONTEXT` | *(current context)* | Overrides the `kubectl`/`istioctl` context, e.g. `docker-desktop` |
+| `TF_DIR` | `terraform` | Terraform working directory used by the `tf-*` targets |
+| `GATEWAY_HOST` / `GATEWAY_PORT` | `localhost` / `80` | Fallback gateway address used by `gateway-url`/`traffic` when no cloud LoadBalancer hostname is found (i.e. on Docker Desktop) |
+| `REVIEWS_LABEL` | `app=reviews` | Pod selector used by `proxy-config`, `log-level`, and `access-logs` to pick a target pod |
+| `LOG_LEVEL` | `debug` | Level applied by `make log-level` (pass `LOG_LEVEL=warning` to reset it) |
+| `TRAFFIC_REQUESTS` | `100` | Number of requests `make traffic` sends through the gateway |
+
+Override any of them inline, e.g.:
+
+```bash
+make NAMESPACE=bookinfo LOG_LEVEL=warning log-level
+```
+
+*(Requires GNU Make; on Windows, run it via WSL or Git Bash.)*
 
 ## 1. Provision the Cluster
 
