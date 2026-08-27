@@ -2,6 +2,31 @@
 
 This project provides Terraform code to provision an Amazon EKS cluster and instructions to deploy Istio (which uses Envoy under the hood) along with a sample application to showcase traffic routing, observability, and security.
 
+## Table of Contents
+
+- [What are Istio and Envoy?](#what-are-istio-and-envoy)
+- [Architecture & Traffic Flow](#architecture--traffic-flow)
+- [1. Provision the Cluster](#1-provision-the-cluster)
+  - [Option A: Clean Local Setup (Docker Desktop - Mac/Windows)](#option-a-clean-local-setup-docker-desktop---macwindows)
+  - [Option B: Cloud Setup (Amazon EKS via Terraform)](#option-b-cloud-setup-amazon-eks-via-terraform)
+- [2. Install Istio](#2-install-istio)
+- [3. Deploy the Sample Application (Bookinfo)](#3-deploy-the-sample-application-bookinfo)
+- [4. Expose the Application](#4-expose-the-application)
+- [5. Showcase Istio & Envoy Functionality](#5-showcase-istio--envoy-functionality)
+  - [A. Traffic Routing (Weight-based routing)](#a-traffic-routing-weight-based-routing)
+  - [B. View Envoy Proxy Configuration](#b-view-envoy-proxy-configuration)
+  - [C. Advanced Envoy Configurations (Bootstrap & Secrets)](#c-advanced-envoy-configurations-bootstrap--secrets)
+  - [D. Dynamically Change Envoy Log Levels](#d-dynamically-change-envoy-log-levels)
+  - [E. Check Envoy Sync Status](#e-check-envoy-sync-status)
+  - [F. Native Envoy Commands (Admin API)](#f-native-envoy-commands-admin-api)
+  - [G. View Envoy Access Logs](#g-view-envoy-access-logs)
+  - [H. Traffic Management & Fault Injection Showcase](#h-traffic-management--fault-injection-showcase)
+  - [I. Observability (Kiali, Jaeger, Prometheus, Grafana)](#i-observability-kiali-jaeger-prometheus-grafana)
+- [6. Cleanup](#6-cleanup)
+  - [Option A: Local Docker Desktop Cleanup](#option-a-local-docker-desktop-cleanup)
+  - [Option B: AWS EKS Cloud Cleanup](#option-b-aws-eks-cloud-cleanup)
+- [7. CI: Terraform Plan (optional, one-time AWS setup)](#7-ci-terraform-plan-optional-one-time-aws-setup)
+
 ## What are Istio and Envoy?
 
 **Envoy** is a lightweight proxy. In this setup, one runs as a "sidecar" container inside every application pod, transparently intercepting all network traffic in and out of that pod -- the application itself doesn't need to know it's there. Because every request flows through a proxy, Envoy can do things like retries, timeouts, load balancing, mutual TLS, and detailed metrics/tracing without any application code changes.
@@ -14,63 +39,9 @@ Together: Envoy does the data-plane work (actually moving and inspecting traffic
 
 The following diagram illustrates how the components interact in the cloud environment, from the user's initial request down to the individual components in the Bookinfo microservices.
 
-```mermaid
-graph TD
-    User((User)) -->|HTTP Request| IngressGW
+[![Architecture & Traffic Flow diagram](docs/architecture.svg)](docs/architecture.svg)
 
-    Admin((Cluster Admin)) -->|kubectl / istioctl| EKSAPI[EKS API Server]
-    EKSAPI --> Istiod
-
-    subgraph "AWS Cloud (VPC)"
-        subgraph "Amazon EKS Cluster"
-            subgraph "namespace: istio-system"
-                Istiod["Istiod (Control Plane)<br/>Manages config & certificates"]
-                IngressGW["Istio Ingress Gateway (Envoy)<br/>Entrypoint for external traffic"]
-            end
-
-            subgraph "namespace: default (Bookinfo App)"
-                ProductPage["productpage pod<br/>(App + Envoy Sidecar)"]
-                Details["details pod<br/>(App + Envoy Sidecar)"]
-                
-                subgraph "reviews pods"
-                    Reviews1["reviews-v1<br/>(App + Envoy Sidecar)"]
-                    Reviews2["reviews-v2<br/>(App + Envoy Sidecar)"]
-                    Reviews3["reviews-v3<br/>(App + Envoy Sidecar)"]
-                end
-                
-                Ratings["ratings pod<br/>(App + Envoy Sidecar)"]
-            end
-            
-            %% Control Plane connections (xDS)
-            Istiod -. "Push Envoy Config (xDS)" .-> IngressGW
-            Istiod -. "Push Envoy Config (xDS)" .-> ProductPage
-            Istiod -. "Push Envoy Config (xDS)" .-> Details
-            Istiod -. "Push Envoy Config (xDS)" .-> Reviews1
-            Istiod -. "Push Envoy Config (xDS)" .-> Reviews2
-            Istiod -. "Push Envoy Config (xDS)" .-> Reviews3
-            Istiod -. "Push Envoy Config (xDS)" .-> Ratings
-            
-            %% Data Plane traffic flow
-            IngressGW == "Routes traffic" ==> ProductPage
-            ProductPage == "Fetches details" ==> Details
-            ProductPage == "Fetches reviews" ==> Reviews1
-            ProductPage == "Fetches reviews" ==> Reviews2
-            ProductPage == "Fetches reviews" ==> Reviews3
-            Reviews2 == "Fetches ratings" ==> Ratings
-            Reviews3 == "Fetches ratings" ==> Ratings
-        end
-    end
-
-    classDef controlPlane fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
-    classDef dataPlane fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
-    classDef gw fill:#fff3e0,stroke:#e65100,stroke-width:2px;
-    classDef admin fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
-
-    class Istiod controlPlane;
-    class ProductPage,Details,Reviews1,Reviews2,Reviews3,Ratings dataPlane;
-    class IngressGW gw;
-    class EKSAPI admin;
-```
+*Click the diagram (or [open it directly](docs/architecture.svg)) to view it full-size -- right-click / Cmd- or Ctrl-click to open it in a new tab. Source: [docs/architecture.mmd](docs/architecture.mmd).*
 
 ## 1. Provision the Cluster
 
